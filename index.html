@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Attendance App</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:,">
+  <style>
+    body {
+      background: linear-gradient(#f2b6c1,#B973B9);
+      font-family: 'Roboto', Arial, sans-serif;
+    }
+    .main-container {
+      max-width: 650px;
+      margin: 48px auto;
+      padding: 32px;
+      background: linear-gradient(rgb(79, 199, 199),rgb(128, 59, 128));
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    }
+    h6 {
+      color: #7e57c2;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .card {
+      margin-bottom: 28px;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(126,87,194,0.08);
+      background: linear-gradient(90deg, #e3f2fd 60%, #fce4ec 100%);
+    }
+    .button {
+      background: linear-gradient(#7373FF,#BFFFFF);
+      color: #fff;
+      font-weight: 600;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(255,183,77,0.12);
+      border: none;
+      padding: 10px 24px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .qr-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 18px;
+      background: #fff8e1;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(255,183,77,0.08);
+    }
+    .table-container {
+      margin-top: 18px;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      font-size: 1.05rem;
+      color: #6d4c41;
+    }
+    th {
+      font-weight: bold;
+      background: linear-gradient();
+      color: #7e57c2;
+    }
+    .attendance-status {
+      font-weight: bold;
+      color: #388e3c;
+      background: #c8e6c9;
+      border-radius: 6px;
+      padding: 2px 8px;
+    }
+    .attendance-status.absent {
+      color: #d32f2f;
+      background: #ffcdd2;
+    }
+    .input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      border: 1px solid #e1bee7;
+      background: #f3e5f5;
+      font-size: 1rem;
+    }
+    .label {
+      color: #7e57c2;
+      font-weight: 500;
+      margin-bottom: 2px;
+      display: block;
+    }
+    .error {
+      color: #d32f2f;
+      margin-top: 8px;
+    }
+  </style>
+  <!-- React, ReactDOM, Babel, html5-qrcode, QRCode.js -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    // Use localStorage for participants
+    function getParticipants() {
+      return JSON.parse(localStorage.getItem('participants') || '[]');
+    }
+    function setParticipants(list) {
+      localStorage.setItem('participants', JSON.stringify(list));
+    }
+
+    function RegistrationForm({ onRegister }) {
+      const [name, setName] = React.useState('');
+      const [email, setEmail] = React.useState('');
+      const [id, setId] = React.useState('');
+      const [qr, setQr] = React.useState('');
+      const [error, setError] = React.useState('');
+      React.useEffect(() => {
+        if (qr) {
+          const qrDiv = document.getElementById('qr-code');
+          if (qrDiv) {
+            qrDiv.innerHTML = '';
+            new window.QRCode(qrDiv, {
+              text: qr,
+              width: 128,
+              height: 128
+            });
+          }
+        }
+      }, [qr]);
+      const handleRegister = () => {
+        if (!name || !email || !id) return setError('All fields required');
+        let participants = getParticipants();
+        if (participants.find(p => p.id === id)) {
+          setError('ID already registered');
+          return;
+        }
+        participants.push({ name, email, id, attended: false, timestamp: null });
+        setParticipants(participants);
+        setQr(id);
+        setError('');
+        onRegister();
+      };
+      return (
+        <div className="card">
+          <h6>Register</h6>
+          <label className="label">Name</label>
+          <input className="input" value={name} onChange={e => setName(e.target.value)} />
+          <label className="label">Email</label>
+          <input className="input" value={email} onChange={e => setEmail(e.target.value)} />
+          <label className="label">Registration ID</label>
+          <input className="input" value={id} onChange={e => setId(e.target.value)} />
+          <button className="button" onClick={handleRegister}>Register & Generate QR</button>
+          {error && <div className="error">{error}</div>}
+          {qr && <div className="qr-box"><div id="qr-code"></div><div>ID: {qr}</div></div>}
+        </div>
+      );
+    }
+
+    function AttendanceScanner({ onScan }) {
+      const [status, setStatus] = React.useState('');
+      React.useEffect(() => {
+        const scanner = new window.Html5QrcodeScanner(
+          "qr-reader",
+          { fps: 10, qrbox: 250 },
+          false
+        );
+        scanner.render(
+          (data) => {
+            setStatus('Scanning...');
+            let participants = getParticipants();
+            const participant = participants.find(p => p.id === data);
+            if (!participant) {
+              setStatus('ID not found');
+              return;
+            }
+            if (participant.attended) {
+              setStatus('Already marked present');
+              return;
+            }
+            participant.attended = true;
+            participant.timestamp = new Date().toLocaleString();
+            setParticipants(participants);
+            setStatus('Attendance marked!');
+            onScan();
+          },
+          () => {}
+        );
+        return () => {
+          scanner.clear();
+        };
+      }, []);
+      return (
+        <div className="card">
+          <h6>Attendance Scanner</h6>
+          <div id="qr-reader" style={{ width: '100%' }}></div>
+          {status && <div style={{color: status.includes('marked') ? '#388e3c' : '#d32f2f'}}>{status}</div>}
+        </div>
+      );
+    }
+
+    function AdminDashboard() {
+      const [participants, setParticipantsState] = React.useState([]);
+      React.useEffect(() => {
+        setParticipantsState(getParticipants());
+        const interval = setInterval(() => setParticipantsState(getParticipants()), 2000);
+        return () => clearInterval(interval);
+      }, []);
+      const handleExport = () => {
+        let csv = 'Name,Email,ID,Status,Timestamp\n';
+        getParticipants().forEach(p => {
+          csv += `${p.name},${p.email},${p.id},${p.attended ? 'Present' : 'Absent'},${p.timestamp || '-'}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'attendance.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+      return (
+        <div className="card">
+          <h6>Admin Dashboard</h6>
+          <button className="button" style={{marginBottom:'12px'}} onClick={handleExport}>Download Attendance Excel</button>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>ID</th>
+                  <th>Status</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {participants.map(p => (
+                  <tr key={p.id}>
+                    <td>{p.name}</td>
+                    <td>{p.email}</td>
+                    <td>{p.id}</td>
+                    <td className={p.attended ? 'attendance-status' : 'attendance-status absent'}>{p.attended ? 'Present' : 'Absent'}</td>
+                    <td>{p.timestamp || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [refresh, setRefresh] = React.useState(false);
+      return (
+        <div className="main-container">
+          <RegistrationForm onRegister={() => setRefresh(!refresh)} />
+          <AttendanceScanner onScan={() => setRefresh(!refresh)} />
+          <AdminDashboard key={refresh} />
+        </div>
+      );
+    }
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
