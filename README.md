@@ -38,5 +38,4 @@ Open `pro.html` in your web browser.
 - Keep the backend server running while using the frontend.
 - All data is stored in memory and will reset when the server restarts.
 
----
-Created by GitHub Copilot
+
